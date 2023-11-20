@@ -1,4 +1,5 @@
 let 8 = \s.\z.s (s (s (s (s (s (s (s z))))))) in
+let 1 = \s.\z.s z in
 let mul = \m.\n.\f.(m (n f)) in
 let prec = \n.\f.\x. n (\g.\h. h (g f)) (\u.x) (\u.u) in
 let T = \x.\y.x in

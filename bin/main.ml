@@ -34,6 +34,7 @@ let main () =
     print_string "output program\n";
     print_string "==============\n";
     Pp.pp (Evaluator.reduce_lexp pgm);
-    print_string "\n")
+    print_string "\n";
+    print_string ("After " ^ string_of_int !Evaluator.applications ^ " reductions!\n"))
 
 let _ = main ()

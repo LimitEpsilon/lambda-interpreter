@@ -43,7 +43,9 @@ module Evaluator = struct
   and s = t * ctx
   and state = Halt of lexp | Continue of s
 
-  let[@tail_mod_cons] rec reduce (A (env, exp), ctx) =
+  let applications = ref 0
+
+  let rec reduce (A (env, exp), ctx) =
     match Hashtbl.find label_table exp with
     | LVar x -> (
       match LEnv.find x env with
@@ -55,7 +57,7 @@ module Evaluator = struct
       | found -> reduce (found, ctx))
     | LLam (x, e) -> (
       match ctx with
-      | Free ctx -> reduce (ctx (Error (x, e, env)))
+      | Free ctx -> incr applications; reduce (ctx (Error (x, e, env)))
       | Value ctx ->
         reduce (A (LEnv.remove x env, e), Value (fun e -> ctx (Lam (x, e)))))
     | LApp (e1, e2) ->
@@ -74,6 +76,7 @@ module Evaluator = struct
 
   let reduce_lexp e =
     let my_lbl = label e in
+    applications := 0;
     let exp = reduce (A (LEnv.empty, my_lbl), Value (fun e -> Halt e)) in
     exp
 end
@@ -141,18 +144,18 @@ module Printer = struct
         match LEnv.find x env with
         | exception Not_found -> (
           match ctx with
-          | Free ctx -> finite_reduce (leftover_steps - 1) (ctx (Ok (Var x)))
+          | Free ctx -> finite_reduce leftover_steps (ctx (Ok (Var x)))
           | Value ctx -> (
             match ctx (Var x) with
             | Halt e -> Pp.Pp.pp e
-            | Continue k -> finite_reduce (leftover_steps - 1) k))
-        | found -> finite_reduce (leftover_steps - 1) (found, ctx))
+            | Continue k -> finite_reduce leftover_steps k))
+        | found -> finite_reduce leftover_steps (found, ctx))
       | LLam (x, e) -> (
         match ctx with
         | Free ctx ->
           finite_reduce (leftover_steps - 1) (ctx (Error (x, e, env)))
         | Value ctx ->
-          finite_reduce (leftover_steps - 1)
+          finite_reduce leftover_steps
             (A (LEnv.remove x env, e), Value (fun e -> ctx (Lam (x, e)))))
       | LApp (e1, e2) ->
         let ok_case =
@@ -160,7 +163,7 @@ module Printer = struct
           | Free ctx -> fun e1 e2 -> Continue (ctx (Ok (App (e1, e2))))
           | Value ctx -> fun e1 e2 -> ctx (App (e1, e2))
         in
-        finite_reduce (leftover_steps - 1)
+        finite_reduce leftover_steps
           ( A (env, e1),
             Free
               (function
